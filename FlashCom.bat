@@ -1,0 +1,1 @@
+gcc -o FlashCom FlashCom.c
