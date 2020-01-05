@@ -10,8 +10,11 @@ This will display any debug info from the logger(if contructed with a CSerial de
 
 Will also upload files to the PI and reboot:
 
+speed is fixed to 11520x8
 
-FlashCom COM7 115200 Kernel.img rboo
+com port is auto detected
+
+FlashCom Kernel.img reboot
 
 will connect to PI - upload kernel.img - write to sdcard and reboot the PI :)
 
@@ -19,10 +22,10 @@ will connect to PI - upload kernel.img - write to sdcard and reboot the PI :)
 
 Waits for commands from the PC.
 
-Three basic commands
+Three basic internal commands
 
 PICMD:HELO
-  PI will send back "PI: We are Connected!\n" - FlashCom uses this to detect COM port.
+  PI will send back "PI: We are Connected!\n" - FlashCom uses this to auto detect COM port.
 
 PICMD:RBOO
   PI will Reboot!
