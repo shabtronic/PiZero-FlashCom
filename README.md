@@ -1,4 +1,7 @@
 # PiZero-FlashCom
+
+This is a windows command line system:
+
 Simple USB-Uart flash com server, sits ontop of the awesome Circle Bare metal lib (https://github.com/rsta2/circle)
 
 Two Parts:
