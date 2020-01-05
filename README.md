@@ -53,3 +53,9 @@ PICMD:FILE
   "make flash" will now build your kernel, then upload to PI and reboot PI ( as long as SerialHandler() is being called)
   
   Need to build this into the serial devce code - rather than do it externally.
+  
+  To Do:
+  
+  Add compression - deflate,inflate to get the transfer times lower.
+  
+  Test higher speeds!
