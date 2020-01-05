@@ -37,3 +37,16 @@ PICMD:FILE
   Example:
   Kernel.img,11200,2342526262,---data------
   PI will then write file to SDCard
+  
+  
+  Modify rule.mk in circle-master/
+  
+  to
+  
+  flash: $(TARGET).img
+	flashcom $(TARGET).img reboot
+  
+  
+  "make flash" will now build your kernel, then upload to PI and reboot PI ( as long as SerialHandler() is being called)
+  
+  Need to build this into the serial devce code - rather than do it externally.
