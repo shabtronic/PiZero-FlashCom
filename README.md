@@ -9,8 +9,11 @@ Flashcom runs entirely inside the serial device interrupt system - no special co
 Two Parts:
 
 
-1) FlashCom.c - PC side console program/
+1) FlashCom.c - a PC side console program
 
+```
+type Flashcom.bat to make flashcom.exe
+```
 This will display any debug info from the logger(if contructed with a CSerial device)
 
 Will also upload files to the PI and reboot:
