@@ -54,7 +54,8 @@ if (bOK)
 		}
 ```
 
-and make sure you mount the fatfs somewhere in kernel.cpp
+and make sure you mount the fatfs somewhere in kernel.cpp. The flashcom server needs this to be able to write out any transferred files
+onto the SD-Card.
 ```
 	FATFS *fs = (FATFS*)malloc(sizeof(FATFS)); 
 	f_mount(fs, "", 0);
