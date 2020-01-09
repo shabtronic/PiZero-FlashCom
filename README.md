@@ -80,5 +80,5 @@ onto the SD-Card.
   ```
   Add compression - deflate,inflate to get the transfer times lower.
   
-  Windowed output on the pc using #winname# tag or something similar!
+  Windowed output on the pc console using some kind of printf("#winname# blahblah blah"); mechanism or something similar.
   ```
