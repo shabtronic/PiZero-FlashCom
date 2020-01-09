@@ -19,7 +19,7 @@ Running Flashcom.exe will display any debug info from the logger (if contructed 
 
 It can also upload files to the PI and reboot the PI if needed.
 
-The Uart speed is currently fixed to 11520x8 bps
+The Uart speed is currently fixed to 11520x8 bps (about 90kb/sec)
 
 The Com port is auto detected via the internal 'PICOHELO' command.
 
