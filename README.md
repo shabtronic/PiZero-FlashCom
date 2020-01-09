@@ -17,11 +17,11 @@ type Flashcom.bat to make flashcom.exe
 
 Running Flashcom.exe will display any debug info from the logger (if contructed with a CSerial device)
 
-Will also upload files to the PI and reboot:
+It can also upload files to the PI and reboot the PI if needed.
 
-speed is fixed to 11520x8
+The Uard speed is fixed to 11520x8
 
-com port is auto detected
+Com port is auto detected
 
 ![](./Images/FC_Connect.png)
 
