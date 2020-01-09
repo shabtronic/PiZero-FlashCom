@@ -33,7 +33,11 @@ will connect to PI - upload kernel.img - write to sdcard and reboot the PI :)
 
 ![](./Images/FC_Rebot.png)
 
-2) Just need to create Logger with serial device
+2) How to use:
+
+You need to put serial.h in circle-master/include/circle and serial.cpp into circle-master/lib. The flashcom server will then be available to all your projects.
+
+Then you just need to create Logger with serial device
 ```
 if (bOK)
 		{
@@ -42,7 +46,7 @@ if (bOK)
 		}
 ```
 
-make sure serial is set to 921600 speed:
+make sure serial is set to 921600 speed. It's currently hardcoded in flashcom.c, maybe it's possible to auto detect the uart speed at a later commit. 
 ```
 if (bOK)
 		{
@@ -72,7 +76,8 @@ and make sure you mount the fatfs somewhere in kernel.cpp
 
   
   To Do:
-  
+  ```
   Add compression - deflate,inflate to get the transfer times lower.
   
   Windowed output on the pc using #winname# tag or something similar!
+  ```
