@@ -1,70 +1,62 @@
-
-#include <windows.h>
-//#include <timeapi.h>
+﻿#include <windows.h>
 #include <stdio.h>
 #include <string.h>
+
 const int UartSpeed = 115200 * 8;
-HANDLE     hStdout;
+
 #define ConsumeTimeout 5
-#define BLUE  1
-#define GREEN 2
-#define CYAN 3
-#define RED 4
-#define PURPLE 5
-#define YELLOW 6
-#define WHITE 7
+
 #define ORIGIN "PC: "
+#define ANSIBLACK "\033[0;30m"
+#define ANSIRED "\033[0;31m"
+#define ANSIGREEN "\033[0;32m"
+#define ANSIYELLOW "\033[0;33m"
+#define ANSIBLUE "\033[0;34m"
+#define ANSIMAGENTA "\033[0;35m"
+#define ANSICYAN "\033[0;36m"
+#define ANSIWHITE "\033[0m"
 
-unsigned int crc32_for_byte(unsigned int r)
-	{
-	for (int j = 0; j < 8; j++)
-		r = (r & 1 ? 0 : (unsigned int)0xEDB88320L) ^ r >> 1;
-	return r ^ (unsigned int)0xFF000000L;
-	}
+// PICOHELO - pi will return PIOK
+// PICORBOO - pi will reboot
+// PICOFILE - pi will expect file info and transfer
+//		FileName,FileSize,FileSize2,CRC32,Type,.....raw file data in 1024 byte chunks....
+//		pi will send back PIOK after every 1024 byte chunk
 
-unsigned int crc32(const void *data, size_t n_bytes)
+char cornerset[] = "│─┐└┘┌";
+char conerset2[] = "║═╗╚╝╔";
+unsigned int crc32(const void *data, unsigned int n_bytes)
 	{
 	unsigned int crc = 0;
 	static unsigned int table[0x100] = { 0 };
 	if (!*table)
-		for (int i = 0; i < 0x100; i++)
-			table[i] = crc32_for_byte(i);
-	for (size_t i = 0; i < n_bytes; ++i)
-		crc = table[(unsigned char)crc ^ ((unsigned char*)data)[i]] ^ crc >> 8;
+		for (unsigned int i = 0; i < 0x100; i++)
+			{
+			unsigned int xi = i;
+			for (int j = 0; j < 8; j++)
+				xi = (xi & 1 ? 0 : (unsigned int)0xEDB88320L) ^ xi >> 1;
+			table[i] = (xi ^ (unsigned int)0xFF000000L);
+			}
+	while (n_bytes--)
+		crc = table[(unsigned char)crc ^ (*(unsigned char*)data++)] ^ crc >> 8;
 	return crc;
 	}
 
-void TextColor(int col)
-	{
-	SetConsoleTextAttribute(hStdout, col | FOREGROUND_INTENSITY);
-	}
+
 
 HANDLE OpenPort(char* Name)
 	{
-
-	//	system("mode com1: baud=9600 parity=n data=8 stop=1 to=off xon=off");
-	HANDLE hSerial;
-	hSerial = CreateFile(Name, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	HANDLE hSerial = CreateFile(Name, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (hSerial == INVALID_HANDLE_VALUE)
 		{
-		if (GetLastError() == ERROR_FILE_NOT_FOUND)
-			{
-			//serial port does not exist. Inform user.
-			}
-		TextColor(RED);
-		fprintf(stderr, "Error opening: %s\n", Name);
-		TextColor(WHITE);
+		printf(ANSIRED"Error opening: %s\n"ANSIWHITE, Name);
 		return 0;
-
-		//some other error occurred. Inform user.
 		}
 	return hSerial;
 	}
 
 int FileExists(char* filename)
 	{
-	FILE *F;
-	F = fopen(filename, "rb");
+	FILE *F = fopen(filename, "rb");
 	if (F)
 		{
 		fclose(F);
@@ -77,43 +69,22 @@ void PortConfig(HANDLE port, int Speed)
 	{
 	DCB dcbSerialParams = { 0 };
 	dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
-	if (!GetCommState(port, &dcbSerialParams))
-		{
-		TextColor(RED);
-		//fprintf(stderr, "Error Getting Com State\n");
-		TextColor(WHITE);
-		//error getting state
-		}
+	GetCommState(port, &dcbSerialParams);
 	dcbSerialParams.BaudRate = (DWORD)Speed;
 	dcbSerialParams.ByteSize = 8;
 	dcbSerialParams.StopBits = ONESTOPBIT;
 	dcbSerialParams.Parity = NOPARITY;
-	if (!SetCommState(port, &dcbSerialParams))
-		{
-		TextColor(RED);
-		//fprintf(stderr, "Error Setting Com State\n");
-		TextColor(WHITE);
-		//error setting serial port state
-		}
+SetCommState(port, &dcbSerialParams);
 
 	COMMTIMEOUTS timeouts = { 0 };
 	timeouts.ReadIntervalTimeout = 50;
 	timeouts.ReadTotalTimeoutConstant = 50;
 	timeouts.ReadTotalTimeoutMultiplier = 10;
-
 	timeouts.WriteTotalTimeoutConstant = 50;
 	timeouts.WriteTotalTimeoutMultiplier = 10;
-	if (!SetCommTimeouts(port, &timeouts))
-		{
-		TextColor(RED);
-		//fprintf(stderr, "Error Setting Timeouts\n");
-		TextColor(WHITE);
-		}
+	SetCommTimeouts(port, &timeouts);
 	}
-void ClosePort(HANDLE port)
-	{
 
-	}
 
 double GetTime()
 	{
@@ -122,33 +93,30 @@ double GetTime()
 	QueryPerformanceFrequency((LARGE_INTEGER *)&freq);
 	return (double)time1 / freq;
 	}
-void uSleep(int waitTime)
-	{
-	__int64 time1 = 0, time2 = 0, freq = 0;
-	QueryPerformanceCounter((LARGE_INTEGER *)&time1);
-	QueryPerformanceFrequency((LARGE_INTEGER *)&freq);
-	do
-		{
-		QueryPerformanceCounter((LARGE_INTEGER *)&time2);
-		} while ((time2 - time1) < waitTime);
-	}
-void Write(HANDLE cp, char* m)
+
+int WriteString(HANDLE cp, char* m)
 	{
 	DWORD BytesWritten;
 	WriteFile(cp, m, strlen(m), &BytesWritten, NULL);
+	return BytesWritten;
 	}
-void WriteBytes(HANDLE cp, char* buf, int size)
+int WriteBytes(HANDLE cp, char* buf, int size)
 	{
 	DWORD BytesWritten;
 	WriteFile(cp, buf, size, &BytesWritten, NULL);
+	return BytesWritten;
 	}
-
+int WriteDWORD(HANDLE cp, DWORD size)
+	{
+	DWORD BytesWritten;
+	WriteFile(cp, &size,4, &BytesWritten, NULL);
+	return BytesWritten;
+	}
 
 int Consume(HANDLE ComPort, char* EatMe, int TimeOut)
 	{
 	char* teatme = EatMe;
-	int count = 0;
-	while (*teatme && count < TimeOut)
+	while (*teatme &&  TimeOut)
 		{
 		char Byte;
 		DWORD dwBytesRead;
@@ -161,177 +129,143 @@ int Consume(HANDLE ComPort, char* EatMe, int TimeOut)
 				teatme = EatMe;
 			}
 		else
-			count++;
+			TimeOut--;
 		}
 	if (*teatme)
 		return 0;
 	return 1;
 	}
-int SendFile(HANDLE comport, char* filename)
+void SendFile(HANDLE comport, char* filename)
 	{
-	int res = 1;
 	printf("PC: Sending File %s to PI\n", filename);
-	FILE *F;
-	F = fopen(filename, "rb");
+	FILE *F = fopen(filename, "rb");
 	if (F)
 		{
 		double st = GetTime();
 		fseek(F, 0, SEEK_END);
-		int fsize = ftell(F);
+		DWORD fsize = ftell(F);
+		DWORD ofsize = fsize;
 		fseek(F, 0, SEEK_SET);
 		char* Data = (char*)malloc(fsize);
 		fread(Data, 1, fsize, F);
+		fclose(F);
 		printf("PC: file size is %2.1fKb\n", (float)fsize / (1024));
-		unsigned int crc = crc32(Data, fsize);
+		DWORD crc = crc32(Data, fsize);
 		//printf("file crc is %u\n", crc);
-		char sstring[1024];
-		sprintf(sstring, "PICMD:FILE%s,%d,%d,%u,RAW,", filename, fsize, fsize, crc);
-		Write(comport, sstring);
+		WriteString(comport, "PICOFILE");
+		// We Send 1024 bytes of data 
+
+		WriteDWORD(comport, strlen(filename));
+		WriteDWORD(comport, fsize);
+		WriteDWORD(comport, fsize);
+		WriteDWORD(comport, crc);
+		WriteDWORD(comport, (DWORD)'RAW ');
+		WriteString(comport, filename);
+		char temp[1024];
+		memset(temp, 0,1024);
+		WriteBytes(comport,temp, 1024 - (20 + strlen(filename)));
+
 		char *tdata = Data;
-		int chunk = 0;
-		int ofsize = fsize;
-		printf("PC: File Transfer: ");
+
+		printf(ANSIYELLOW"PC: File Transfer: "ANSIWHITE);
 		while (fsize)
 			{
 			float percent = 100 - 100 * ((float)fsize / ofsize);
-			TextColor(GREEN);
-			printf("%5.1f%%\b\b\b\b\b\b", percent);
-			TextColor(WHITE);
-			int BytesWritten = 0;
-			if (fsize > 1024)
+			printf(ANSIGREEN"%5.1f%%\b\b\b\b\b\b"ANSIGREEN, percent);
+			if (fsize >= 1024)
 				{
-				WriteFile(comport, tdata, 1024, &BytesWritten, NULL);
-				tdata += 1024;
-				fsize -= 1024;
-				if (BytesWritten != 1024 || !Consume(comport, "FOK", 50))
+				if (WriteBytes(comport, tdata, 1024) != 1024 || !Consume(comport, "PIOK", 50))
 					{
-					if (BytesWritten != 1024)
-						printf("PC: Error Sending File Chunk %d Bytes Written %d\n", chunk, BytesWritten);
-					else
-						printf("PC: Error Sending File Chunk %d no FOK received\n", chunk, BytesWritten);
-					res = 0;
+					printf(ANSIRED"\nPC: Error Sending File Chunk\n"ANSIWHITE);
 					goto cleanup;
 					}
+				tdata += 1024;
+				fsize -= 1024;
 				}
 			else
 				{
-				WriteFile(comport, tdata, fsize, &BytesWritten, NULL);
-				if (BytesWritten != fsize || !Consume(comport, "FOK", 500))
+				if (WriteBytes(comport, tdata, fsize) != fsize || !Consume(comport, "PIOK", 500))
 					{
-					if (BytesWritten != fsize)
-						printf("PC: Error Sending File Chunk %d Bytes Written %d\n", chunk, BytesWritten);
-					else
-						printf("PC: Error Sending File Chunk %d no FOK received\n", chunk, BytesWritten);
-
-					res = 0;
+					printf(ANSIRED"\nPC: Error Sending File Chunk\n"ANSIWHITE);
 					goto cleanup;
 					}
 				fsize = 0;
-				TextColor(GREEN);
 				st = GetTime() - st;
-				printf("100%%  in %2.1f secs\n\n", st);
-				TextColor(WHITE);
-
+				printf(ANSIGREEN"100%%  in %2.1f secs\n\n"ANSIWHITE, st);
 				}
-			chunk++;
 			}
-		//	printf("\n");
 	cleanup:
-		fclose(F);
 		free(Data);
 		}
 	else
 		printf("PC: error file %s not found\n", filename);
-	return res;
 	}
 HANDLE EnumComPorts()
 	{
-	//	printf("Enum Com Ports:\n\n");
 	char Res[1024];
-	static char ComString[1024];
+	static char ComString[8];
 	for (int a = 0; a < 50; a++)
 		{
-		Res[0] = 0;
-
 		sprintf(ComString, "COM%d", a);
-		QueryDosDevice(ComString, Res, 1024);
-		if (Res[0] != 0)
+		if (QueryDosDevice(ComString, Res, 1024)>0)
 			{
-			//printf("%s %s\n", ComString, Res);
 			HANDLE ComPort = OpenPort(ComString);
 			PortConfig(ComPort, UartSpeed);
-			Write(ComPort, "PICMD:HELO");
-			if (Consume(ComPort, "PI: We are Connected!", 5))
+			WriteString(ComPort, "PICOHELO");
+			if (Consume(ComPort, "PIOK", 5))
 				{
-				//	TextColor(YELLOW);
 				printf("PC: Found PI on %s %s\n", ComString, Res);
-				//	TextColor(WHITE);
 				return ComPort;
 				}
-			ClosePort(ComPort);
+			CloseHandle(ComPort);
 			}
 		}
-	printf("\n");
 	return 0;
 	}
 
 int main(int nArgC, char **ppArgV)
 	{
-	hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+	char *pArg0 = *ppArgV++;
+	nArgC--;
 	system("cls");
-	TextColor(GREEN);
-	printf("FlashCom V1.00 Serial PI Comms Utility (C) 2020 S.D.Smith\n\n");
-	TextColor(WHITE);
-	//EnumComPorts();
+	printf(ANSIGREEN"FlashCom V1.00 Serial PI Comms Utility (C) 2020 S.D.Smith\n\n"ANSIWHITE);
 
 	HANDLE ComPort = EnumComPorts();
 	if (!ComPort)
 		{
-		printf("PC: PI not found :(\n");
+		printf(ANSIRED"PC: PI not found :(\n"ANSIWHITE);
 		return 0;
 		}
-	//PortConfig(ComPort, UartSpeed);
+	printf("PC: Uart speed is %d * 115200 = %2.1fKb/s\n", 8, (float)UartSpeed / (10 * 1024));
 
-//	TextColor(BLUE);
-	fprintf(stderr, "PC: Uart speed is %d * 115200 = %2.1fKb/s\n", 8, (float)UartSpeed / (10 * 1024));
-	//	TextColor(WHITE);
-
-	char *pArg0 = *ppArgV++;
-	nArgC--;
 	char* filesend = 0;
 	int Reboot = 0;
 	for (int a = 0; a < nArgC; a++)
 		{
 		if (FileExists(ppArgV[a]))
 			filesend = ppArgV[a];
-
 		if (strstr(ppArgV[a], "reboot") > 0)
 			Reboot = 1;
 		}
 
-
 	if (filesend)
-		{
-		if (SendFile(ComPort, filesend))
-			Sleep(400); // sleep a little so PI has a chance to come out of handler and write file
-		}
-	if (Reboot)
-		{
-		printf("PC: Rebooting PI\n");
-		Write(ComPort, "PICMD:RBOO");
-		}
-
+		SendFile(ComPort, filesend);
+	char Buf[256] = { 0 };
 	while (1)
 		{
-		char szBuff[16] = { 0 };
+
 		DWORD dwBytesRead = 0;
-		ReadFile(ComPort, szBuff, 1, &dwBytesRead, NULL);
-		//TextColor(YELLOW);
-		if (dwBytesRead == 1)
-			printf("%c", szBuff[0]);
-		//TextColor(WHITE);
-		uSleep(1);
+		ReadFile(ComPort, Buf, 255, &dwBytesRead, NULL);
+		Buf[dwBytesRead] = 0;
+	//	if (dwBytesRead > 0)
+			printf("%s", Buf);
+		if (Reboot)
+			{
+			printf("PC: Rebooting PI\n");
+			WriteString(ComPort, "PICORBOO");
+			Reboot = 0;
+			}
 		}
-	ClosePort(ComPort);
+	CloseHandle(ComPort);
 	return 0;
 	}
