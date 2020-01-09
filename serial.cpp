@@ -121,6 +121,7 @@ CSerialDevice::CSerialDevice(CInterruptSystem *pInterruptSystem, boolean bUseFIQ
 	{
 	}
 
+// SDS Flashcom and Printf Code
 
 void CSerialDevice::printf(const char *pMessage, ...)
 	{
@@ -131,6 +132,110 @@ void CSerialDevice::printf(const char *pMessage, ...)
 	va_end(arg);
 	Write(ftmp.c_str(), ftmp.GetLength());
 	}
+
+unsigned int crc32(const void *data, unsigned int n_bytes)
+	{
+	unsigned int crc = 0;
+	static unsigned int table[0x100] = { 0 };
+	if (!*table)
+		for (unsigned int i = 0; i < 0x100; i++)
+			{
+			unsigned int xi = i;
+			for (int j = 0; j < 8; j++)
+				xi = (xi & 1 ? 0 : (unsigned int)0xEDB88320L) ^ xi >> 1;
+			table[i] = (xi ^ (unsigned int)0xFF000000L);
+			}
+	while (n_bytes--)
+		crc = table[(unsigned char)crc ^ (*(unsigned char*)data++)] ^ crc >> 8;
+	return crc;
+	}
+
+#define ANSIRED "\033[0;31m"
+#define ANSIGREEN "\033[0;32m"
+#define ANSIWHITE "\033[0m"
+
+unsigned int BytesNeeded = 1;
+DWORD FC[2] = { 0,0 };
+char Buf[1024];
+char* Pipe = (char*)&FC[0];
+char* FileBuf = 0;
+
+void CSerialDevice::FlashCom()
+	{
+	while (AvailableForRead() >= BytesNeeded)
+		{
+		Read(Pipe, BytesNeeded);
+
+		if (FileBuf && Pipe >= FileBuf)
+			{
+			printf("PIOK");
+			(*(int*)&Buf[4]) -= 1024;
+			Pipe += 1024;
+			if (BytesNeeded < 1024)
+				{
+				DWORD ncrc = crc32(FileBuf, (*(DWORD*)&Buf[8]));
+				if (ncrc != (*(DWORD*)&Buf[12]))
+					{
+					printf("PI:"ANSIRED" Error crc's dont match!"ANSIWHITE"\n");
+					}
+				else
+					{
+					FIL File;
+					f_open(&File, (char*)&Buf[20], FA_WRITE | FA_CREATE_ALWAYS);
+					f_write(&File, FileBuf, (*(DWORD*)&Buf[8]), 0);
+					f_close(&File);
+					printf("PI: file data received OK!\nPI:"ANSIGREEN" Success crc's match - writing file"ANSIWHITE"\n");
+					}
+				Pipe = (char*)&FC[0];
+				BytesNeeded = 1;
+				if (FileBuf)
+					{
+					free(FileBuf);
+					FileBuf = 0;
+					}
+				}
+			else
+				if ((*(int*)&Buf[4]) < 1024)
+					{
+					BytesNeeded = (*(DWORD*)&Buf[4]);
+					}
+			}
+		else if (Pipe == (char*)Buf)
+			{
+			FileBuf = (char*)malloc(*(DWORD*)&Buf[4]);
+			Pipe = FileBuf;
+			}
+		else if (Pipe == (char*)&FC[1] && (DWORD)FC[1] == (DWORD)'ELIF')
+			{
+			BytesNeeded = 1024;
+			Pipe = Buf;
+			}
+		else if ((Pipe == (char*)&FC[1]) && (FC[1] == (DWORD)'OLEH'))
+			{
+			printf("PIOK");
+			Pipe = (char*)&FC[0];
+			BytesNeeded = 1;
+			}
+		else if (Pipe == (char*)&FC[1] && (FC[1] == (DWORD)'OOBR'))
+			{
+			printf("PI: Rebooting!\n");
+			Flush();
+			reboot();
+			}
+		else if (Pipe == (char*)&FC[0])
+			{
+			if (FC[0] == (DWORD)'PICO')
+				{
+				Pipe = (char*)&FC[1];
+				BytesNeeded = 4;
+				}
+			FC[0] <<= 8;
+			}
+		}
+
+	}
+
+
 CSerialDevice::~CSerialDevice(void)
 	{
 	PeripheralEntry();
@@ -572,119 +677,15 @@ void CSerialDevice::InterruptHandler(void)
 		{
 		(*m_pMagicReceivedHandler) ();
 		}
-	// SDS put flash comHere!
+
+	// Run flashcom is we have any data
+
 	if (AvailableForRead() > 0)
-		{
 		FlashCom();
-		}
 	}
 
 
-unsigned int crc32(const void *data, unsigned int n_bytes)
-	{
-	unsigned int crc = 0;
-	static unsigned int table[0x100] = { 0 };
-	if (!*table)
-		for (unsigned int i = 0; i < 0x100; i++)
-			{
-			unsigned int xi = i;
-			for (int j = 0; j < 8; j++)
-				xi = (xi & 1 ? 0 : (unsigned int)0xEDB88320L) ^ xi >> 1;
-			table[i] = (xi ^ (unsigned int)0xFF000000L);
-			}
-	while (n_bytes--)
-		crc = table[(unsigned char)crc ^ (*(unsigned char*)data++)] ^ crc >> 8;
-	return crc;
-	}
 
-#define ANSIRED "\033[0;31m"
-#define ANSIGREEN "\033[0;32m"
-#define ANSIWHITE "\033[0m"
-unsigned int BytesNeeded = 1;
-DWORD FC[16] = { 0,0,0,0 };
-char Buf[1024];
-char* Pipe = (char*)&FC[0];
-char* FileBuf = 0;
-
-void CSerialDevice::FlashCom()
-	{
-	while (AvailableForRead() >= BytesNeeded)
-		{
-		Read(Pipe, BytesNeeded);
-
-		if (FileBuf && Pipe >= FileBuf)
-			{
-			printf("PIOK");
-			(*(int*)&Buf[4]) -= 1024;
-			Pipe += 1024;
-			if (BytesNeeded < 1024)
-				{
-				DWORD ncrc = crc32(FileBuf, (*(DWORD*)&Buf[8]));
-				if (ncrc != (*(DWORD*)&Buf[12]))
-					{
-					printf("PI:"ANSIRED" Error crc's dont match!"ANSIWHITE"\n");
-					}
-				else
-					{
-					FIL File;
-					f_open(&File, (char*)&Buf[20], FA_WRITE | FA_CREATE_ALWAYS);
-					f_write(&File, FileBuf, (*(DWORD*)&Buf[8]), 0);
-					f_close(&File);
-					printf("PI: file data received OK!\nPI:"ANSIGREEN" Success crc's match - writing file"ANSIWHITE"\n");
-					}
-				Pipe = (char*)&FC[0];
-				BytesNeeded = 1;
-				if (FileBuf)
-					{
-					free(FileBuf);
-					FileBuf = 0;
-		}
-	}
-			else
-				if ((*(int*)&Buf[4]) < 1024)
-					{
-					BytesNeeded = (*(DWORD*)&Buf[4]);
-					}
-				}
-		else
-			if (Pipe == (char*)Buf)
-				{
-				FileBuf = (char*)malloc(*(DWORD*)&Buf[4]);
-				Pipe = FileBuf;
-				}
-			else
-				if (Pipe == (char*)&FC[1] && (DWORD)FC[1] == (DWORD)'ELIF')
-					{
-					BytesNeeded = 1024;
-					Pipe = Buf;
-					}
-				else
-					if ((Pipe == (char*)&FC[1]) && (FC[1] == (DWORD)'OLEH'))
-						{
-						printf("PIOK");
-						Pipe = (char*)&FC[0];
-						BytesNeeded = 1;
-						}
-					else
-						if (Pipe == (char*)&FC[1] && (FC[1] == (DWORD)'OOBR'))
-							{
-							printf("PI: Rebooting!\n");
-							Flush();
-							reboot();
-							}
-						else
-							if (Pipe == (char*)&FC[0])
-								{
-								if (FC[0] == (DWORD)'PICO')
-									{
-									Pipe = (char*)&FC[1];
-									BytesNeeded = 4;
-									}
-								FC[0] <<= 8;
-								}
-			}
-
-	}
 void CSerialDevice::InterruptStub(void *pParam)
 	{
 	CSerialDevice *pThis = (CSerialDevice *)pParam;

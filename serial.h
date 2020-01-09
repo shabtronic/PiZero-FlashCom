@@ -57,6 +57,7 @@ public:
 	/// \param nCount Number of bytes to be sent
 	/// \return Number of bytes successfully sent (< 0 on error)
 	int Write (const void *pBuffer, size_t nCount);
+	// Added printf for simplicity
 	void printf(const char *pMessage, ...);
 
 #ifndef USE_RPI_STUB_AT
@@ -76,16 +77,18 @@ public:
 	/// \param pHandler Handler which is called, when the magic string is found
 	/// \note Does only work with interrupt driver.
 	void RegisterMagicReceivedHandler (const char *pMagic, TMagicReceivedHandler *pHandler);
+	
+protected:
+
 	void Flush(void);
 	/// \return Number of bytes buffer space available for Write()
 	/// \note Does only work with interrupt driver.
 	unsigned AvailableForWrite(void);
-
 	/// \return Number of bytes already received available for Read()
 	/// \note Does only work with interrupt driver.
 	unsigned AvailableForRead(void);
+	/// Flash com server
 	void FlashCom();
-protected:
 
 
 	/// \return Next received byte which will be returned by Read() (-1 if no data available)
