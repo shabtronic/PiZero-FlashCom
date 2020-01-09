@@ -25,7 +25,7 @@ Com port is auto detected
 
 ![](./Images/FC_Connect.png)
 
-typeing "FlashCom Kernel.img reboot"
+typing "FlashCom Kernel.img reboot"
 
 will connect to PI - upload kernel.img - write to sdcard and reboot the PI :)
 
