@@ -58,11 +58,11 @@ and make sure you mount the fatfs somewhere in kernel.cpp
 ```	
   
   
-  "make flash" will now build your kernel, then upload to PI and reboot PI ( as long as SerialHandler() is being called)
+  "make flash" will now build your kernel, then upload to PI and reboot PI - too easy!
 
   
   To Do:
   
   Add compression - deflate,inflate to get the transfer times lower.
   
-  Test higher speeds!
+  Windowed output on the pc using #winname# tag or something similar!
