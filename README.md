@@ -14,7 +14,8 @@ Two Parts:
 ```
 type Flashcom.bat to make flashcom.exe
 ```
-This will display any debug info from the logger(if contructed with a CSerial device)
+
+Running Flashcom.exe will display any debug info from the logger (if contructed with a CSerial device)
 
 Will also upload files to the PI and reboot:
 
