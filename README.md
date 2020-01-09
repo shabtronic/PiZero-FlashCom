@@ -4,6 +4,8 @@ This is a windows command line system:
 
 Simple USB-Uart flash com server, sits ontop of the awesome Circle Bare metal lib (https://github.com/rsta2/circle)
 
+Flashcom runs entirely inside the serial device interrupt system - no special code needed.
+
 Two Parts:
 
 
@@ -21,38 +23,43 @@ FlashCom Kernel.img reboot
 
 will connect to PI - upload kernel.img - write to sdcard and reboot the PI :)
 
-2) Main.cpp - Circle lib main that has the "Flash" server
+2) Just need to create Logger with serial device
+```
+if (bOK)
+		{
+		CDevice *pTarget = &m_Serial;
+		bOK = log.Initialize(pTarget);
+		}
+```
 
-Waits for commands from the PC.
+make sure serial is set to 921600 speed:
+```
+if (bOK)
+		{
+		bOK = m_Serial.Initialize(115200 * 8);
+		}
+```
 
-Three basic internal commands
+and make sure you mount the fatfs somewhere in kernel.cpp
+```
+	FATFS *fs = (FATFS*)malloc(sizeof(FATFS)); 
+	f_mount(fs, "", 0);
+```
 
-PICMD:HELO
-  PI will send back "PI: We are Connected!\n" - FlashCom uses this to auto detect COM port.
 
-PICMD:RBOO
-  PI will Reboot!
 
-PICMD:FILE
-  PI will wait for file info in this simple csv format:
-  
-  FileName,FileSize,CRC32,RawFileData
-  Example:
-  Kernel.img,11200,2342526262,---data------
-  PI will then write file to SDCard
-  
   
   Modify rule.mk in circle-master/
   
   to
-  
+  ```
   flash: $(TARGET).img
 	flashcom $(TARGET).img reboot
+```	
   
   
   "make flash" will now build your kernel, then upload to PI and reboot PI ( as long as SerialHandler() is being called)
-  
-  Need to build this into the serial devce code - rather than do it externally.
+
   
   To Do:
   
