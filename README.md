@@ -58,7 +58,7 @@ and make sure you mount the fatfs somewhere in kernel.cpp
 
 
   
-  Modify rule.mk in circle-master/
+  Modify rules.mk in circle-master/
   
   to
   ```
