@@ -19,9 +19,15 @@ speed is fixed to 11520x8
 
 com port is auto detected
 
+![](./Images/FC_Connect.png)
+
 FlashCom Kernel.img reboot
 
 will connect to PI - upload kernel.img - write to sdcard and reboot the PI :)
+
+![](./Images/FC_Uploading.png)
+
+![](./Images/FC_Rebot.png)
 
 2) Just need to create Logger with serial device
 ```
