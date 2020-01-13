@@ -37,7 +37,7 @@ will connect to PI - upload kernel.img - write to sdcard and reboot the PI :)
 
 You need to put serial.h in circle-master/include/circle and serial.cpp into circle-master/lib. The flashcom server will then be available to all your projects.
 
-Then you just need to create Logger with serial device
+Then you just need to create Logger with serial device, if you want debug output routed to FlashCom.
 ```
 if (bOK)
 		{
